@@ -18,16 +18,10 @@ std::complex<float> calculateComplexAverage(const float* audioData, int numSampl
     std::complex<float> sum(0.0f, 0.0f);
 
     for (int t = 0; t < numSamples; ++t)
-    {   
-        float sineValue = std::sin(juce::MathConstants<float>::pi * static_cast<float>(t) / static_cast<float>(numSamples));
-
-        float windowMultiplier = sineValue * sineValue;
-
-        float windowedSample = audioData[t] * windowMultiplier;
-
+    {
         std::complex<float> exponent(0.0f, -*currentPhase);
 
-        sum += windowedSample * std::exp(exponent);
+        sum += audioData[t] * std::exp(exponent);
 
         *currentPhase += phaseDelta;
 
