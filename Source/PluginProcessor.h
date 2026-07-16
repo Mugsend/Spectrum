@@ -24,7 +24,7 @@ public:
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
 
-    std::vector<std::atomic<float>> magnitudes;
+    std::vector<std::atomic<float>> uiMagnitudes;
    #ifndef JucePlugin_PreferredChannelConfigurations
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
    #endif
@@ -56,11 +56,7 @@ public:
 
 private:
 
-    float currentPhase = 0.0f;
-    double currentSampleRate = 44100.0;
-    std::vector<float> targetFrequencies;
-    std::vector<float> currentPhases;
-    int numBins = 30;
+    int numBins = 512;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SpectrumAudioProcessor)
 };

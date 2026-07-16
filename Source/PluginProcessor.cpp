@@ -11,35 +11,39 @@
 #include <complex>
 #include <cmath>
 
-std::complex<float> calculateComplexAverage(const float* audioData, int numSamples, float phaseDelta, float* currentPhase)
-{   
-    if (numSamples == 0) return { 0.0f, 0.0f };
-   
-    std::complex<float> sum(0.0f, 0.0f);
+std::vector<std::complex<float>> fft(std::vector<std::complex<float>>&buffer) {
+    int N = buffer.size();
 
-    for (int t = 0; t < numSamples; ++t)
-    {   
-        float sineValue = std::sin(juce::MathConstants<float>::pi * static_cast<float>(t) / static_cast<float>(numSamples));
+    if (N <= 1) return buffer;
 
-        float windowMultiplier = sineValue * sineValue;
+    std::vector<std::complex<float>> evens;
+    std::vector <std::complex<float>> odds;
 
-        float windowedSample = audioData[t] * windowMultiplier;
-
-        std::complex<float> exponent(0.0f, -*currentPhase);
-
-        sum += windowedSample * std::exp(exponent);
-
-        *currentPhase += phaseDelta;
-
-        if (*currentPhase >= juce::MathConstants<float>::twoPi) {
-            *currentPhase -= juce::MathConstants<float>::twoPi;
-        }
+    for (int i = 0; i < N; ++i) {
+        if (i % 2 == 0)
+            evens.push_back(buffer[i]);
+        else
+            odds.push_back(buffer[i]);
     }
 
-    std::complex<float> average = sum / static_cast<float>(numSamples);
-    
-    return average;
+    std::vector<std::complex<float>> evenResult = fft(evens);
+    std::vector<std::complex<float>> oddResult = fft(odds);
+
+    std::vector<std::complex<float>> finalResult(N);
+
+    for (int k = 0; k < N / 2; ++k) {
+        float angle = -juce::MathConstants<float>::twoPi * k / N;
+        std::complex<float> twiddleFactor(std::cos(angle), std::sin(angle));
+
+        std::complex<float> t = twiddleFactor * oddResult[k];
+
+        finalResult[k] = evenResult[k] + t;
+        finalResult[k + N / 2] = evenResult[k] - t;
+    }
+
+    return finalResult;
 }
+
 //==============================================================================
 SpectrumAudioProcessor::SpectrumAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -124,14 +128,7 @@ void SpectrumAudioProcessor::changeProgramName (int index, const juce::String& n
 //==============================================================================
 void SpectrumAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    currentSampleRate = sampleRate;
-    targetFrequencies.resize(numBins);
-    currentPhases.resize(numBins, 0.0f);
-    magnitudes = std::vector <std::atomic<float>>(numBins);
-    for (int i = 0; i < numBins; ++i)
-    {
-        targetFrequencies[i] = 10.0f * (i + 1);
-    }
+    uiMagnitudes = std::vector <std::atomic<float>>(numBins);
 }
 
 void SpectrumAudioProcessor::releaseResources()
@@ -179,12 +176,36 @@ void SpectrumAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     auto* channelData = buffer.getReadPointer(0);
 
-    for (int f = 0; f < numBins; ++f) {
-        float phaseDelta = (juce::MathConstants<float>::twoPi * targetFrequencies[f]) / static_cast<float>(currentSampleRate);
+    int fftSize = numBins * 2;
 
-        std::complex<float> average = calculateComplexAverage(channelData, numSamples, phaseDelta, &currentPhases[f]);
+    std::vector<std::complex<float>> complexBuffer(fftSize, { 0.0f, 0.0f });
+    
+    for (int t = 0; t < fftSize; ++t) {
 
-        magnitudes[f].store(std::abs(average));
+        if (t < numSamples) {
+            float sineValue = std::sin(juce::MathConstants<float>::pi * static_cast<float>(t) / static_cast<float>(numSamples));
+
+            float windowMultiplier = sineValue * sineValue;
+
+            float windowedSample = channelData[t] * windowMultiplier;
+
+            complexBuffer[t] = std::complex<float>(windowedSample, 0.0f);
+        }
+        else {
+            complexBuffer[t] = std::complex<float>(0.0f, 0.0f);
+        }
+    }
+    std::vector<std::complex<float>> spectrum = fft(complexBuffer);
+    
+
+    for (int k = 0; k < numBins; ++k) {
+        float rawMagnitude = std::abs(spectrum[k]);
+
+        float normalisedMagnitude = rawMagnitude / static_cast<float>(numBins);
+
+        float decibels = juce::Decibels::gainToDecibels(normalisedMagnitude, -100.0f);
+
+        uiMagnitudes[k].store(decibels);
     }
 }
 

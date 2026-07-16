@@ -46,11 +46,19 @@ public:
 
         float binWidth = width / static_cast<float>(currentLevels.size());
         
+        const float minDb = -100.0f;
+        const float maxDb = 0.0f;
+        const float dbRange = maxDb - minDb;
+
         g.setColour(juce::Colours::cyan);
         for (size_t i = 0; i < currentLevels.size(); ++i) {
-            float mappedY = height - (currentLevels[i] * height);
-            mappedY = juce::jlimit(0.0f, height, mappedY);
+            float currentDb = currentLevels[i];
 
+            float normalisedDb = (currentDb - minDb) / dbRange;
+
+            normalisedDb = juce::jlimit(0.0f, 1.0f, normalisedDb);
+
+            float mappedY = height - (normalisedDb * height);
             float xPos = i * binWidth;
             float barHeight = height - mappedY;
 
@@ -79,7 +87,7 @@ public:
 
 private:
     SpectrumAudioProcessor& audioProcessor;
-    MagnitudeMeter meter{ audioProcessor.magnitudes };
+    MagnitudeMeter meter{ audioProcessor.uiMagnitudes };
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SpectrumAudioProcessorEditor)
 };
 
