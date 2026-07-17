@@ -11,38 +11,54 @@
 #include <complex>
 #include <cmath>
 
-std::vector<std::complex<float>> fft(std::vector<std::complex<float>>&buffer) {
-    int N = buffer.size();
+void computeFFT(std::vector<std::complex<float>>& buffer, int activeSize)
+{
+    if (activeSize <= 1) return;
 
-    if (N <= 1) return buffer;
+    int j = 0;
+    for (int i = 0; i < activeSize; i++)
+    {
+        if (i < j)
+        {
+            std::swap(buffer[i], buffer[j]);
+        }
 
-    std::vector<std::complex<float>> evens;
-    std::vector <std::complex<float>> odds;
-
-    for (int i = 0; i < N; ++i) {
-        if (i % 2 == 0)
-            evens.push_back(buffer[i]);
-        else
-            odds.push_back(buffer[i]);
+        int m = activeSize / 2;
+        while (m >= 1 && j >= m)
+        {
+            j -= m;
+            m /= 2;
+        }
+        j += m;
     }
 
-    std::vector<std::complex<float>> evenResult = fft(evens);
-    std::vector<std::complex<float>> oddResult = fft(odds);
+    const float PI = 3.14159265358979323846f;
 
-    std::vector<std::complex<float>> finalResult(N);
+    for (int step = 2; step <= activeSize; step *= 2)
+    {
+        int halfStep = step / 2;
 
-    for (int k = 0; k < N / 2; ++k) {
-        float angle = -juce::MathConstants<float>::twoPi * k / N;
-        std::complex<float> twiddleFactor(std::cos(angle), std::sin(angle));
+        float angle = -2.0f * PI / static_cast<float>(step);
+        std::complex<float> w_multiplier(std::cos(angle), std::sin(angle));
 
-        std::complex<float> t = twiddleFactor * oddResult[k];
+        for (int k = 0; k < activeSize; k += step)
+        {
+            std::complex<float> w(1.0f, 0.0f);
 
-        finalResult[k] = evenResult[k] + t;
-        finalResult[k + N / 2] = evenResult[k] - t;
+            for (int j = 0; j < halfStep; j++)
+            {
+                std::complex<float> t = w * buffer[k + j + halfStep];
+                std::complex<float> u = buffer[k + j];
+
+                buffer[k + j] = u + t;
+                buffer[k + j + halfStep] = u - t;
+
+                w *= w_multiplier;
+            }
+        }
     }
-
-    return finalResult;
 }
+
 
 //==============================================================================
 SpectrumAudioProcessor::SpectrumAudioProcessor()
@@ -57,6 +73,9 @@ SpectrumAudioProcessor::SpectrumAudioProcessor()
                        )
 #endif
 {
+    for (auto& mag : magnitudes) {
+        mag.store(-100.0f);
+    }
 }
 
 SpectrumAudioProcessor::~SpectrumAudioProcessor()
@@ -128,7 +147,6 @@ void SpectrumAudioProcessor::changeProgramName (int index, const juce::String& n
 //==============================================================================
 void SpectrumAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    uiMagnitudes = std::vector <std::atomic<float>>(numBins);
 }
 
 void SpectrumAudioProcessor::releaseResources()
@@ -176,11 +194,9 @@ void SpectrumAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     auto* channelData = buffer.getReadPointer(0);
 
-    int fftSize = numBins * 2;
+    int activeFftSize = currentFftSize.load();
 
-    std::vector<std::complex<float>> complexBuffer(fftSize, { 0.0f, 0.0f });
-    
-    for (int t = 0; t < fftSize; ++t) {
+    for (int t = 0; t < activeFftSize; ++t) {
 
         if (t < numSamples) {
             float sineValue = std::sin(juce::MathConstants<float>::pi * static_cast<float>(t) / static_cast<float>(numSamples));
@@ -188,24 +204,27 @@ void SpectrumAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
             float windowMultiplier = sineValue * sineValue;
 
             float windowedSample = channelData[t] * windowMultiplier;
-
             complexBuffer[t] = std::complex<float>(windowedSample, 0.0f);
         }
         else {
             complexBuffer[t] = std::complex<float>(0.0f, 0.0f);
         }
     }
-    std::vector<std::complex<float>> spectrum = fft(complexBuffer);
-    
 
-    for (int k = 0; k < numBins; ++k) {
-        float rawMagnitude = std::abs(spectrum[k]);
+    computeFFT(complexBuffer, activeFftSize);
 
-        float normalisedMagnitude = rawMagnitude / static_cast<float>(numBins);
+    int numActiveBins = activeFftSize / 2;
+
+    activeNumBins.store(numActiveBins);
+
+    for (int k = 0; k < numActiveBins; ++k) {
+        float rawMagnitude = std::abs(complexBuffer[k]);
+
+        float normalisedMagnitude = rawMagnitude / (static_cast<float>(activeFftSize));
 
         float decibels = juce::Decibels::gainToDecibels(normalisedMagnitude, -100.0f);
 
-        uiMagnitudes[k].store(decibels);
+        magnitudes[k].store(decibels);
     }
 }
 

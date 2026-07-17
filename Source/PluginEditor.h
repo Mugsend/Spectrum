@@ -15,10 +15,9 @@ class MagnitudeMeter : public juce::Component, public juce::Timer
 {
 public:
     // Pass in a reference to your atomic magnitude variable
-    MagnitudeMeter(std::vector<std::atomic<float>>& magValues) : magnitudeValues(magValues)
+    MagnitudeMeter(std::array<std::atomic<float>,SpectrumAudioProcessor::maxBins>& magValues, std::atomic<int>& activeBins) : magnitudeValues(magValues), activeNumBins(activeBins)
     {
-        currentLevels.resize(magValues.size());
-        startTimerHz(30);
+        startTimerHz(60);
     }
 
     ~MagnitudeMeter() override
@@ -28,10 +27,7 @@ public:
 
     void timerCallback() override
     {
-        for (size_t i = 0; i < currentLevels.size(); ++i)
-        {
-            currentLevels[i] = magnitudeValues[i].load();
-        }
+        
         repaint();
     }
 
@@ -39,36 +35,38 @@ public:
     {
         g.fillAll(juce::Colours::black);
 
+        int binsToDraw = activeNumBins.load();
+        if (binsToDraw == 0) return;
+
         auto width = static_cast<float>(getWidth());
         auto height = static_cast<float>(getHeight());
 
-        if (currentLevels.empty()) return;
-
-        float binWidth = width / static_cast<float>(currentLevels.size());
+        float binWidth = width / static_cast<float>(binsToDraw);
         
         const float minDb = -100.0f;
         const float maxDb = 0.0f;
         const float dbRange = maxDb - minDb;
 
-        g.setColour(juce::Colours::cyan);
-        for (size_t i = 0; i < currentLevels.size(); ++i) {
-            float currentDb = currentLevels[i];
+        g.setColour(juce::Colours::blue);
+
+        for (int i = 0; i < binsToDraw; ++i) {
+            float currentDb = magnitudeValues[i].load();
 
             float normalisedDb = (currentDb - minDb) / dbRange;
-
-            normalisedDb = juce::jlimit(0.0f, 1.0f, normalisedDb);
 
             float mappedY = height - (normalisedDb * height);
             float xPos = i * binWidth;
             float barHeight = height - mappedY;
 
-            g.fillRect(xPos, mappedY, binWidth - 1.0f, barHeight);
+            //g.fillRect(xPos, mappedY, binWidth - 1.0f, barHeight);
+            g.drawLine(xPos, height, xPos, barHeight);
+                
         }
     }
 
 private:
-    std::vector<std::atomic<float>>&magnitudeValues;
-    std::vector<float> currentLevels;
+    std::array<std::atomic<float>, SpectrumAudioProcessor::maxBins>&magnitudeValues;
+    std::atomic<int>& activeNumBins;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MagnitudeMeter)
 };
@@ -87,7 +85,11 @@ public:
 
 private:
     SpectrumAudioProcessor& audioProcessor;
-    MagnitudeMeter meter{ audioProcessor.uiMagnitudes };
+
+    MagnitudeMeter meter{ audioProcessor.magnitudes, audioProcessor.activeNumBins };
+
+    juce::ComboBox binSizeMenu;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SpectrumAudioProcessorEditor)
 };
 
