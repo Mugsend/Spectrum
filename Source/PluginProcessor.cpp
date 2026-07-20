@@ -11,55 +11,6 @@
 #include <complex>
 #include <cmath>
 
-void computeFFT(std::vector<std::complex<float>>& buffer, int activeSize)
-{
-    if (activeSize <= 1) return;
-
-    int j = 0;
-    for (int i = 0; i < activeSize; i++)
-    {
-        if (i < j)
-        {
-            std::swap(buffer[i], buffer[j]);
-        }
-
-        int m = activeSize / 2;
-        while (m >= 1 && j >= m)
-        {
-            j -= m;
-            m /= 2;
-        }
-        j += m;
-    }
-
-    const float PI = 3.14159265358979323846f;
-
-    for (int step = 2; step <= activeSize; step *= 2)
-    {
-        int halfStep = step / 2;
-
-        float angle = -2.0f * PI / static_cast<float>(step);
-        std::complex<float> w_multiplier(std::cos(angle), std::sin(angle));
-
-        for (int k = 0; k < activeSize; k += step)
-        {
-            std::complex<float> w(1.0f, 0.0f);
-
-            for (int j = 0; j < halfStep; j++)
-            {
-                std::complex<float> t = w * buffer[k + j + halfStep];
-                std::complex<float> u = buffer[k + j];
-
-                buffer[k + j] = u + t;
-                buffer[k + j + halfStep] = u - t;
-
-                w *= w_multiplier;
-            }
-        }
-    }
-}
-
-
 //==============================================================================
 SpectrumAudioProcessor::SpectrumAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -73,9 +24,7 @@ SpectrumAudioProcessor::SpectrumAudioProcessor()
                        )
 #endif
 {
-    for (auto& mag : magnitudes) {
-        mag.store(-100.0f);
-    }
+    
 }
 
 SpectrumAudioProcessor::~SpectrumAudioProcessor()
@@ -180,7 +129,28 @@ bool SpectrumAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
   #endif
 }
 #endif
-int c = 0;
+void SpectrumAudioProcessor::pushNextSampleIntoFifo(float sample) noexcept
+{
+    int currentOrder = currentFftOrder.load();
+    int currentFftSize = 1 << currentOrder;
+    int currentHopSize = currentFftSize / 2;
+
+    fifo[fifoIndex++] = sample;
+
+    if (fifoIndex >= currentFftSize)
+    {
+        if (!nextFFTBlockReady.load())
+        {
+            std::fill(fftData.begin(), fftData.end(), 0.0f);
+            std::copy(fifo.begin(), fifo.begin() + currentFftSize, fftData.begin());
+
+            nextFFTBlockReady.store(true);
+        }
+
+        std::copy(fifo.begin() + currentHopSize, fifo.begin() + currentFftSize, fifo.begin());
+        fifoIndex = currentFftSize - currentHopSize;
+    }
+}
 void SpectrumAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -194,38 +164,14 @@ void SpectrumAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     auto* channelData = buffer.getReadPointer(0);
 
-    int activeFftSize = currentFftSize.load();
 
-    for (int t = 0; t < activeFftSize; ++t) {
-
-        if (t < numSamples) {
-            float sineValue = std::sin(juce::MathConstants<float>::pi * static_cast<float>(t) / static_cast<float>(numSamples));
-
-            float windowMultiplier = sineValue * sineValue;
-
-            float windowedSample = channelData[t] * windowMultiplier;
-            complexBuffer[t] = std::complex<float>(windowedSample, 0.0f);
-        }
-        else {
-            complexBuffer[t] = std::complex<float>(0.0f, 0.0f);
-        }
+    for (int t = 0; t < numSamples; ++t) {
+          
+        pushNextSampleIntoFifo(channelData[t]);
+ 
     }
 
-    computeFFT(complexBuffer, activeFftSize);
-
-    int numActiveBins = activeFftSize / 2;
-
-    activeNumBins.store(numActiveBins);
-
-    for (int k = 0; k < numActiveBins; ++k) {
-        float rawMagnitude = std::abs(complexBuffer[k]);
-
-        float normalisedMagnitude = rawMagnitude / (static_cast<float>(activeFftSize));
-
-        float decibels = juce::Decibels::gainToDecibels(normalisedMagnitude, -100.0f);
-
-        magnitudes[k].store(decibels);
-    }
+    
 }
 
 //==============================================================================
