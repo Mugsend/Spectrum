@@ -14,22 +14,22 @@
 //==============================================================================
 /**
 */
-class SpectrumAudioProcessor  : public juce::AudioProcessor
+class SpectrumAudioProcessor : public juce::AudioProcessor
 {
 public:
     //==============================================================================
     SpectrumAudioProcessor();
-        ~SpectrumAudioProcessor() override;
+    ~SpectrumAudioProcessor() override;
 
     //==============================================================================
-    void prepareToPlay (double sampleRate, int samplesPerBlock) override;
+    void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
 
-   #ifndef JucePlugin_PreferredChannelConfigurations
-    bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
-   #endif
+#ifndef JucePlugin_PreferredChannelConfigurations
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
+#endif
 
-    void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     //==============================================================================
     juce::AudioProcessorEditor* createEditor() override;
@@ -46,24 +46,38 @@ public:
     //==============================================================================
     int getNumPrograms() override;
     int getCurrentProgram() override;
-    void setCurrentProgram (int index) override;
-    const juce::String getProgramName (int index) override;
-    void changeProgramName (int index, const juce::String& newName) override;
+    void setCurrentProgram(int index) override;
+    const juce::String getProgramName(int index) override;
+    void changeProgramName(int index, const juce::String& newName) override;
 
     //==============================================================================
-    void getStateInformation (juce::MemoryBlock& destData) override;
+    void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
-    static constexpr int maxFftSize = 16384;
-    static constexpr int maxBins = maxFftSize / 2;
-    std::array<std::atomic<float>, maxBins> magnitudes;
-    std::atomic<int> activeNumBins{ 256 };
-    std::atomic<int> currentFftSize{ 512 };
+
+    static constexpr int maxFftOrder = 14;
+    static constexpr int maxFftSize = 1 << maxFftOrder;
+
+    std::atomic<bool> nextFFTBlockReady{ false };
+    std::atomic<int> currentFftOrder{ 11 };
+
+    std::array<float, maxFftSize> fifo;
+    std::array<float, maxFftSize * 2> fftData;
+    int fifoIndex = 0;
+
+    juce::dsp::FFT fft2048{ 11 };
+    juce::dsp::FFT fft4096{ 12 };
+    juce::dsp::FFT fft8192{ 13 };
+    juce::dsp::FFT fft16384{ 14 };
+
+    juce::dsp::WindowingFunction<float> window2048{ 2048, juce::dsp::WindowingFunction<float>::hann };
+    juce::dsp::WindowingFunction<float> window4096{ 4096, juce::dsp::WindowingFunction<float>::hann };
+    juce::dsp::WindowingFunction<float> window8192{ 8192, juce::dsp::WindowingFunction<float>::hann };
+    juce::dsp::WindowingFunction<float> window16384{ 16384, juce::dsp::WindowingFunction<float>::hann };
+    
+
+    void pushNextSampleIntoFifo(float sample) noexcept;
+
 private:
-
-    std::vector<std::complex<float>> complexBuffer = std::vector<std::complex<float>>(maxFftSize, { 0.0f, 0.0f });
-
-    
-    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SpectrumAudioProcessor)
 };
