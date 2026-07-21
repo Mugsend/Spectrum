@@ -162,12 +162,37 @@ void SpectrumAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     
     int numSamples = buffer.getNumSamples();
 
-    auto* channelData = buffer.getReadPointer(0);
 
+    int mode = currentChannelMode.load();
+    int numChannels = buffer.getNumChannels();
 
     for (int t = 0; t < numSamples; ++t) {
-          
-        pushNextSampleIntoFifo(channelData[t]);
+        
+        float mixedSample = 0.0f;
+        
+        if (mode == 0 && numChannels > 0) 
+        {
+            mixedSample = buffer.getReadPointer(0)[t];
+        }
+        
+        else if (mode == 1 && numChannels > 1) 
+        {
+            mixedSample = buffer.getReadPointer(1)[t];
+        }
+
+        else if (mode == 2) 
+        {
+            if (numChannels > 1) 
+            {
+                mixedSample = (buffer.getReadPointer(0)[t] + buffer.getReadPointer(1)[t]) * 0.5f;
+            }
+            else if (numChannels > 0)
+            {
+                mixedSample = buffer.getReadPointer(0)[t];
+            }
+        }
+
+        pushNextSampleIntoFifo(mixedSample);
  
     }
 

@@ -33,8 +33,32 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
             }
         };
 
+    btnLeft.setRadioGroupId(1);
+    btnRight.setRadioGroupId(1);
+    btnBoth.setRadioGroupId(1);
+
+    btnLeft.setClickingTogglesState(true);
+    btnRight.setClickingTogglesState(true);
+    btnBoth.setClickingTogglesState(true);
+
+    btnBoth.setToggleState(true, juce::dontSendNotification);
+
+    btnLeft.setConnectedEdges(juce::Button::ConnectedOnRight);
+    btnRight.setConnectedEdges(juce::Button::ConnectedOnLeft | juce::Button::ConnectedOnRight);
+    btnBoth.setConnectedEdges(juce::Button::ConnectedOnLeft);
+
+    btnLeft.onClick = [this]() { audioProcessor.currentChannelMode.store(0); };
+    btnRight.onClick = [this]() { audioProcessor.currentChannelMode.store(1); };
+    btnBoth.onClick = [this]() { audioProcessor.currentChannelMode.store(2); };
+
+    
+    
     addAndMakeVisible(meter);
     addAndMakeVisible(binSizeMenu);
+
+    addAndMakeVisible(btnLeft);
+    addAndMakeVisible(btnRight);
+    addAndMakeVisible(btnBoth);
     setSize(1200,300);
 }
 
@@ -51,9 +75,13 @@ void SpectrumAudioProcessorEditor::paint (juce::Graphics& g)
 void SpectrumAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
+    auto headerBounds = bounds.removeFromTop(40);
 
     binSizeMenu.setBounds(45,8,120,24);
 
+    btnLeft.setBounds(45, 42, 35, 24);
+    btnRight.setBounds(80, 42, 35, 24);
+    btnBoth.setBounds(115, 42, 45, 24);
 
     meter.setBounds(bounds);
 }

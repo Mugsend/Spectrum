@@ -64,6 +64,8 @@ public:
     std::array<float, maxFftSize * 2> fftData;
     int fifoIndex = 0;
 
+    std::atomic<int> currentChannelMode = { 2 };
+
     juce::dsp::FFT fft2048{ 11 };
     juce::dsp::FFT fft4096{ 12 };
     juce::dsp::FFT fft8192{ 13 };
