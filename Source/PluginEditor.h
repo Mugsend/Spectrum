@@ -14,7 +14,7 @@
 class MagnitudeMeter : public juce::Component, public juce::Timer
 {
 public:
-    MagnitudeMeter(SpectrumAudioProcessor& p) : processor(p)
+    MagnitudeMeter(SpectrumAudioProcessor& p) : audioProcessor(p)
     {
         std::fill(smoothedData.begin(), smoothedData.end(), minDb);
         std::fill(maxData.begin(), maxData.end(), minDb);
@@ -28,32 +28,32 @@ public:
     
     void timerCallback() override
     {        
-        int order = processor.currentFftOrder.load();
+        int order = audioProcessor.currentFftOrder.load();
         int size = 1 << order;
-        if (processor.nextFFTBlockReady.load())
+        if (audioProcessor.nextFFTBlockReady.load())
         {
             if (order == 11)
             {
-                processor.window2048.multiplyWithWindowingTable(processor.fftData.data(), size);
-                processor.fft2048.performFrequencyOnlyForwardTransform(processor.fftData.data());
+                audioProcessor.window2048.multiplyWithWindowingTable(audioProcessor.fftData.data(), size);
+                audioProcessor.fft2048.performFrequencyOnlyForwardTransform(audioProcessor.fftData.data());
             }
             else if (order == 12)
             {
-                processor.window4096.multiplyWithWindowingTable(processor.fftData.data(), size);
-                processor.fft4096.performFrequencyOnlyForwardTransform(processor.fftData.data());
+                audioProcessor.window4096.multiplyWithWindowingTable(audioProcessor.fftData.data(), size);
+                audioProcessor.fft4096.performFrequencyOnlyForwardTransform(audioProcessor.fftData.data());
             }
             else if (order == 13)
             {
-                processor.window8192.multiplyWithWindowingTable(processor.fftData.data(), size);
-                processor.fft8192.performFrequencyOnlyForwardTransform(processor.fftData.data());
+                audioProcessor.window8192.multiplyWithWindowingTable(audioProcessor.fftData.data(), size);
+                audioProcessor.fft8192.performFrequencyOnlyForwardTransform(audioProcessor.fftData.data());
             }
             else if (order == 14)
             {
-                processor.window16384.multiplyWithWindowingTable(processor.fftData.data(), size);
-                processor.fft16384.performFrequencyOnlyForwardTransform(processor.fftData.data());
+                audioProcessor.window16384.multiplyWithWindowingTable(audioProcessor.fftData.data(), size);
+                audioProcessor.fft16384.performFrequencyOnlyForwardTransform(audioProcessor.fftData.data());
             }
 
-            processor.nextFFTBlockReady.store(false);
+            audioProcessor.nextFFTBlockReady.store(false);
 
             
         }
@@ -67,7 +67,7 @@ public:
         for (int i = 0; i < binsToDraw; ++i)
         {
             
-            float rawMagnitude = processor.fftData[i];
+            float rawMagnitude = audioProcessor.fftData[i];
             float targetDb = juce::Decibels::gainToDecibels(rawMagnitude) - juce::Decibels::gainToDecibels(static_cast<float>(size));
 
             
@@ -83,7 +83,7 @@ public:
     {
 
 
-        int order = processor.currentFftOrder.load();
+        int order = audioProcessor.currentFftOrder.load();
         int activeFftSize = 1 << order;
         int binsToDraw = activeFftSize / 2;
         if (binsToDraw == 0) return;
@@ -107,7 +107,7 @@ public:
             g.drawText(juce::String(db) + "db", 5, yPos - 12, 50, 10, juce::Justification::left);
             g.setColour(juce::Colours::lightgrey.withAlpha(0.1f));
         }
-        float sampleRate = static_cast<float>(processor.getSampleRate());
+        float sampleRate = static_cast<float>(audioProcessor.getSampleRate());
         std::array<float, 10> displayFreqs = { 20.0f, 50.0f, 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f, 10000.0f, 20000.0f };
 
         if (sampleRate>0.0f)
@@ -150,23 +150,49 @@ public:
 
             float mappedY = height - (normalisedDb * height);
             
+            if (currentDb > maxData[i]) 
+            {
+                maxData[i] = currentDb;
+            }
+
+            if (meterMode == 0)
+            {
+                g.drawLine(juce::Line(snapped_X, height, snapped_X, mappedY));
+            }
+
             if (i == 1)
             {
+                
                 spectrumPath.startNewSubPath(xPos, yPos);
+                maxPath.startNewSubPath(xPos,juce::jmap(maxData[i], minDb, maxDb, height, 0.0f));
             }
             else
             {
                 spectrumPath.lineTo(xPos, yPos);
+                maxPath.lineTo(xPos, juce::jmap(maxData[i], minDb, maxDb, height, 0.0f));
+
             }
                 
         }
-        g.strokePath(spectrumPath, juce::PathStrokeType(0.5f));
+        if (meterMode == 1) 
+        {
+            g.strokePath(spectrumPath, juce::PathStrokeType(0.5f));
+
+        }
+
+        if (max.load())
+        {
+            g.strokePath(maxPath, juce::PathStrokeType(0.5f));
+        }
     }
+    std::atomic<bool> max = false;
+    std::atomic<int> meterMode = { 0 };
 
 private:
+
     const float minDb = -120.0f;
     const float maxDb = 0.0f;
-    SpectrumAudioProcessor& processor;
+    SpectrumAudioProcessor& audioProcessor;
     std::array<float, SpectrumAudioProcessor::maxFftSize / 2> smoothedData;
     std::array<float, SpectrumAudioProcessor::maxFftSize / 2> maxData;
 
@@ -191,11 +217,15 @@ private:
 
     MagnitudeMeter meter{ audioProcessor };
 
+
     juce::ComboBox binSizeMenu;
 
     juce::TextButton btnLeft{ "L" };
     juce::TextButton btnRight{ "R" };
     juce::TextButton btnBoth{ "L + R" };
+
+    juce::TextButton btnMax{ "Max" };
+    juce::TextButton btnLine{ "Line" };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SpectrumAudioProcessorEditor)
 };

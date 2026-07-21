@@ -47,18 +47,79 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
     btnRight.setConnectedEdges(juce::Button::ConnectedOnLeft | juce::Button::ConnectedOnRight);
     btnBoth.setConnectedEdges(juce::Button::ConnectedOnLeft);
 
+    btnLeft.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    btnLeft.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
+
+    btnLeft.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+    btnLeft.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+
+    btnRight.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    btnRight.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
+      
+    btnRight.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+    btnRight.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+
+    btnBoth.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    btnBoth.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
+
+    btnBoth.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+    btnBoth.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+
     btnLeft.onClick = [this]() { audioProcessor.currentChannelMode.store(0); };
     btnRight.onClick = [this]() { audioProcessor.currentChannelMode.store(1); };
     btnBoth.onClick = [this]() { audioProcessor.currentChannelMode.store(2); };
 
+    btnMax.setClickingTogglesState(true);
+
+    btnMax.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);    
+    btnMax.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
     
+    btnMax.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    btnMax.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+
+    btnMax.onClick = [this]
+        {
+            if (btnMax.getToggleState())
+                meter.max.store(true);
+            else
+                meter.max.store(false);
+        };
     
+    btnLine.setClickingTogglesState(true);
+
+    btnLine.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    btnLine.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
+
+    btnLine.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+    btnLine.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    btnLine.onClick = [this]
+        {
+            if (btnLine.getToggleState()) 
+            {   
+                meter.meterMode.store(0);
+                btnLine.setButtonText("Line");
+            }
+                
+            else
+            {
+                meter.meterMode.store(1);
+                btnLine.setButtonText("Path");
+            }
+                
+        };
+    btnLine.setToggleState(true, juce::dontSendNotification);
+
     addAndMakeVisible(meter);
     addAndMakeVisible(binSizeMenu);
 
     addAndMakeVisible(btnLeft);
     addAndMakeVisible(btnRight);
     addAndMakeVisible(btnBoth);
+
+    addAndMakeVisible(btnMax);
+
+    addAndMakeVisible(btnLine);
+
     setSize(1200,300);
 }
 
@@ -82,6 +143,9 @@ void SpectrumAudioProcessorEditor::resized()
     btnLeft.setBounds(45, 42, 35, 24);
     btnRight.setBounds(80, 42, 35, 24);
     btnBoth.setBounds(115, 42, 45, 24);
+
+    btnMax.setBounds(45, 76, 45, 24);
+    btnLine.setBounds(95, 76, 45, 24);
 
     meter.setBounds(bounds);
 }
