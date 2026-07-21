@@ -26,6 +26,19 @@ public:
         stopTimer();
     }
     
+    void mouseMove(const juce::MouseEvent& event) override
+    {
+        mousePosition = event.position;
+    }
+    void mouseEnter(const juce::MouseEvent& event) override
+    {
+        isMouseOverGraph = true;
+    }
+
+    void mouseExit(const juce::MouseEvent& event) override
+    {
+        isMouseOverGraph = false;
+    }
     void timerCallback() override
     {        
         int order = audioProcessor.currentFftOrder.load();
@@ -82,7 +95,6 @@ public:
     void paint(juce::Graphics& g) override
     {
 
-
         int order = audioProcessor.currentFftOrder.load();
         int activeFftSize = 1 << order;
         int binsToDraw = activeFftSize / 2;
@@ -107,6 +119,7 @@ public:
             g.drawText(juce::String(db) + "db", 5, yPos - 12, 50, 10, juce::Justification::left);
             g.setColour(juce::Colours::lightgrey.withAlpha(0.1f));
         }
+        
         float sampleRate = static_cast<float>(audioProcessor.getSampleRate());
         std::array<float, 10> displayFreqs = { 20.0f, 50.0f, 100.0f, 200.0f, 500.0f, 1000.0f, 2000.0f, 5000.0f, 10000.0f, 20000.0f };
 
@@ -184,10 +197,55 @@ public:
         {
             g.strokePath(maxPath, juce::PathStrokeType(0.5f));
         }
+
+        if (isMouseOverGraph) 
+        {
+            if (sampleRate > 0.0f)
+            {
+                float currentDb = juce::jmap(mousePosition.y, height, 0.0f, minDb, maxDb);
+                currentDb = juce::jlimit(minDb, maxDb, currentDb);
+
+                float normalisedX = mousePosition.x / width;
+                float currentLog = normalisedX * (maxLog - minLog) + minLog;
+                float binIndex = std::exp(currentLog);
+
+                float currentFreq = binIndex * (sampleRate / static_cast<float>(activeFftSize));
+
+                juce::String freqString;
+                if (currentFreq >= 1000.0f)
+                    freqString = juce::String(currentFreq / 1000.0f, 2) + " kHz";
+                else
+                    freqString = juce::String(currentFreq, 1) + " Hz";
+
+                juce::String dbString = juce::String(currentDb, 1) + " dB";
+                juce::String tooltipText = freqString + " | " + dbString;
+
+                int boxWidth = 120;
+                int boxHeight = 24;
+                int padding = 10;
+
+                int boxX = 45;
+                int boxY = height-boxHeight - padding;
+
+                g.setColour(juce::Colours::black.withAlpha(0.8f));
+                g.fillRoundedRectangle(static_cast<float>(boxX), static_cast<float>(boxY),
+                    static_cast<float>(boxWidth), static_cast<float>(boxHeight), 4.0f);
+
+                g.setColour(juce::Colours::grey);
+                g.drawRoundedRectangle(static_cast<float>(boxX), static_cast<float>(boxY),
+                    static_cast<float>(boxWidth), static_cast<float>(boxHeight), 4.0f, 1.0f);
+
+                g.setColour(juce::Colours::white);
+                g.setFont(12.0f);
+                g.drawText(tooltipText, boxX, boxY, boxWidth, boxHeight, juce::Justification::centred, true);
+            }
+        }
+
     }
     std::atomic<bool> max = false;
     std::atomic<int> meterMode = { 0 };
-
+    bool isMouseOverGraph = false;
+    juce::Point<float> mousePosition;
 private:
 
     const float minDb = -120.0f;

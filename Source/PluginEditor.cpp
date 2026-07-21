@@ -136,7 +136,6 @@ void SpectrumAudioProcessorEditor::paint (juce::Graphics& g)
 void SpectrumAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
-    auto headerBounds = bounds.removeFromTop(40);
 
     binSizeMenu.setBounds(45,8,120,24);
 
@@ -146,6 +145,5 @@ void SpectrumAudioProcessorEditor::resized()
 
     btnMax.setBounds(45, 76, 45, 24);
     btnLine.setBounds(95, 76, 45, 24);
-
     meter.setBounds(bounds);
 }
