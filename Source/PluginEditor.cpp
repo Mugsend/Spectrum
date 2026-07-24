@@ -96,18 +96,54 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
         {
             if (btnLine.getToggleState()) 
             {   
-                meter.meterMode.store(0);
+                meter.currentMeterMode.store(0);
                 btnLine.setButtonText("Line");
             }
                 
             else
             {
-                meter.meterMode.store(1);
+                meter.currentMeterMode.store(1);
                 btnLine.setButtonText("Path");
             }
                 
         };
     btnLine.setToggleState(true, juce::dontSendNotification);
+
+    btnLog.setRadioGroupId(2);
+    btnLin.setRadioGroupId(2);
+    btnST.setRadioGroupId(2);
+
+    btnLog.setClickingTogglesState(true);
+    btnLin.setClickingTogglesState(true);
+    btnST.setClickingTogglesState(true);
+
+    btnLog.setToggleState(true, juce::dontSendNotification);
+
+    btnLog.setConnectedEdges(juce::Button::ConnectedOnRight);
+    btnLin.setConnectedEdges(juce::Button::ConnectedOnLeft | juce::Button::ConnectedOnRight);
+    btnST.setConnectedEdges(juce::Button::ConnectedOnLeft);
+
+    btnLog.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    btnLog.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
+
+    btnLog.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+    btnLog.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+
+    btnLin.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    btnLin.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
+
+    btnLin.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+    btnLin.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+
+    btnST.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
+    btnST.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
+
+    btnST.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+    btnST.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+
+    btnLog.onClick = [this]() { meter.currentScaleMode.store(0); };
+    btnLin.onClick = [this]() { meter.currentScaleMode.store(1); };
+    btnST.onClick = [this]() { meter.currentScaleMode.store(2); };
 
     addAndMakeVisible(meter);
     addAndMakeVisible(binSizeMenu);
@@ -119,6 +155,10 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
     addAndMakeVisible(btnMax);
 
     addAndMakeVisible(btnLine);
+
+    addAndMakeVisible(btnLog);
+    addAndMakeVisible(btnLin);
+    addAndMakeVisible(btnST);
 
     setSize(1200,300);
 }
@@ -145,5 +185,10 @@ void SpectrumAudioProcessorEditor::resized()
 
     btnMax.setBounds(45, 76, 45, 24);
     btnLine.setBounds(95, 76, 45, 24);
+
+    btnLog.setBounds(45, 110, 35, 24);
+    btnLin.setBounds(80, 110, 35, 24);
+    btnST.setBounds(115, 110, 45, 24);
+
     meter.setBounds(bounds);
 }
