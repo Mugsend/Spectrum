@@ -1,16 +1,54 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
 #pragma once
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
+class CustomLookAndFeel : public juce::LookAndFeel_V4
+{
+public:
+    CustomLookAndFeel()
+    {
+        setColour(juce::Slider::backgroundColourId, juce::Colour(0xff2d2d2d));
+        setColour(juce::Slider::trackColourId, juce::Colour(0xff57b846));
+        setColour(juce::Slider::thumbColourId, juce::Colour(0xffffffff));
+
+        setColour(juce::Slider::textBoxTextColourId, juce::Colour(0xffffffff));
+    }
+
+    void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
+        float sliderPos, float minSliderPos, float maxSliderPos,
+        const juce::Slider::SliderStyle style, juce::Slider& slider) override
+    {
+        float alpha = slider.isEnabled() ? 1.0f : 0.4f;
+        juce::Rectangle<float> trackBounds(x, y, width, height);
+
+        g.setColour(slider.findColour(juce::Slider::backgroundColourId).withMultipliedAlpha(alpha));
+        g.fillRect(trackBounds);
+
+        if (slider.isHorizontal())
+        {
+            juce::Rectangle<float> fillRect(trackBounds.getX(), trackBounds.getY(),
+                sliderPos - trackBounds.getX(), trackBounds.getHeight());
+            g.setColour(slider.findColour(juce::Slider::trackColourId).withMultipliedAlpha(alpha));
+            g.fillRect(fillRect);
+
+        }
+        else 
+        {
+            juce::Rectangle<float> fillRect(trackBounds.getX(), sliderPos,
+                trackBounds.getWidth(), trackBounds.getBottom() - sliderPos);
+            g.setColour(slider.findColour(juce::Slider::trackColourId).withMultipliedAlpha(alpha));
+            g.fillRect(fillRect);
+        }
+
+        juce::String text = slider.getTextFromValue(slider.getValue());
+
+        g.setColour(slider.findColour(juce::Slider::textBoxTextColourId).withMultipliedAlpha(alpha));
+        g.setFont(10.0f);
+
+        g.drawText(text, trackBounds.toNearestInt(), juce::Justification::centred, false);
+    }
+};
 class MagnitudeMeter : public juce::Component, public juce::Timer
 {
 public:
@@ -30,6 +68,7 @@ public:
     {
         mousePosition = event.position;
     }
+
     void mouseEnter(const juce::MouseEvent& event) override
     {
         isMouseOverGraph = true;
@@ -39,6 +78,7 @@ public:
     {
         isMouseOverGraph = false;
     }
+
     void timerCallback() override
     {        
         int order = audioProcessor.currentFftOrder.load();
@@ -67,28 +107,48 @@ public:
             }
 
             audioProcessor.nextFFTBlockReady.store(false);
-
-            
         }
 
         int binsToDraw = size / 2;
 
         const float decayFactor = 0.85f;
 
-        
+        float frameMax = minDb;
+        float frameMin = maxDb;
 
-        for (int i = 0; i < binsToDraw; ++i)
-        {
-            
+        for (int i = 1; i < binsToDraw; ++i)
+        {            
             float rawMagnitude = audioProcessor.fftData[i];
             float targetDb = juce::Decibels::gainToDecibels(rawMagnitude) - juce::Decibels::gainToDecibels(static_cast<float>(size));
 
-            
             targetDb = juce::jmax(targetDb, minDb);
 
-            
             smoothedData[i] = (decayFactor * smoothedData[i]) + ((1.0f - decayFactor) * targetDb);
+
+            float val = smoothedData[i];
+
+            if (val < frameMin) frameMin = val;
+
+            if (maxData[i] > frameMax) frameMax = maxData[i];
         }
+
+        frameMax += 10.0f;
+        frameMin -= 10.0f;
+
+        frameMax = juce::jlimit(-40.0f, 12.0f, frameMax);
+        frameMin = juce::jlimit(minDb, -60.0f, frameMin);
+
+        if ((frameMax - frameMin) < 60.0f)
+        {
+            frameMin = frameMax - 60.0f;
+        }
+
+        if (isDbRangeAuto.load()) 
+        {
+            currentMaxDb += (frameMax - currentMaxDb) * 0.1f;
+            currentMinDb += (frameMin - currentMinDb) * 0.1f;
+        } 
+
         repaint();
     }
 
@@ -115,10 +175,6 @@ public:
         int scaleMode = currentScaleMode.load();
         int meterMode = currentMeterMode.load();
 
-        
-
-        const float dbRange = maxDb - minDb;
-
         g.setColour(juce::Colours::blue);
 
         juce::Path spectrumPath;
@@ -126,6 +182,9 @@ public:
 
         bool pathStarted = false;
 
+
+        const int dbStep = 12;
+        float startDb = dbStep * std::floor(currentMinDb / dbStep);
         for (int i = 1; i < binsToDraw; ++i) 
         {
             float xPos = 0;
@@ -156,11 +215,8 @@ public:
 
             float currentDb = smoothedData[i];
 
-            float yPos = juce::jmap(currentDb, minDb, maxDb, height, 0.0f);
+            float yPos = juce::jmap(currentDb, currentMinDb, currentMaxDb, height, 0.0f);
 
-            float normalisedDb = (currentDb - minDb) / dbRange;
-
-            float mappedY = height - (normalisedDb * height);
             
             if (currentDb > maxData[i]) 
             {
@@ -169,20 +225,20 @@ public:
 
             if (currentMeterMode.load() == 0)
             {
-                g.drawVerticalLine(snapped_X, mappedY, height);
+                g.drawVerticalLine(snapped_X, yPos , height);
             }
 
             if (!pathStarted)
             {
                 
                 spectrumPath.startNewSubPath(xPos, yPos);
-                maxPath.startNewSubPath(xPos,juce::jmap(maxData[i], minDb, maxDb, height, 0.0f));
+                maxPath.startNewSubPath(xPos,juce::jmap(maxData[i], currentMinDb, currentMaxDb, height, 0.0f));
                 pathStarted = true;
             }
             else
             {
                 spectrumPath.lineTo(xPos, yPos);
-                maxPath.lineTo(xPos, juce::jmap(maxData[i], minDb, maxDb, height, 0.0f));
+                maxPath.lineTo(xPos, juce::jmap(maxData[i], currentMinDb, currentMaxDb, height, 0.0f));
 
             }
                 
@@ -263,10 +319,9 @@ public:
             }
         }
 
-
-        for (float db = minDb;db < maxDb;db += 12)
+        for (float db = startDb; db <= currentMaxDb; db += dbStep)
         {
-            float yPos = juce::jmap(db, -120.0f, 0.0f, height, 0.0f);
+            float yPos = juce::jmap(db, currentMinDb, currentMaxDb, height, 0.0f);
             int snapped_Y = juce::roundToInt(yPos);
 
             g.setColour(juce::Colours::darkgrey.withAlpha(0.8f));
@@ -279,8 +334,7 @@ public:
         {
             if (sampleRate > 0.0f)
             {
-                float currentDb = juce::jmap(mousePosition.y, height, 0.0f, minDb, maxDb);
-                currentDb = juce::jlimit(minDb, maxDb, currentDb);
+                float currentDb = juce::jmap(mousePosition.y, height, 0.0f, currentMinDb, currentMaxDb);
 
                 float normalisedX = mousePosition.x / width;
                 float currentFreq = 0.0f;
@@ -347,30 +401,40 @@ public:
 
     }
     std::atomic<bool> max = false;
+
     std::atomic<int> currentMeterMode = { 0 };
     std::atomic<int> currentScaleMode = { 0 };
+
+    std::atomic<bool> isDbRangeAuto = true;
+
     bool isMouseOverGraph = false;
     juce::Point<float> mousePosition;
-private:
 
-    const float minDb = -120.0f;
+    const float minDb = -200.0f;
     const float maxDb = 0.0f;
+
+
+    float currentMaxDb = maxDb;
+    float currentMinDb = minDb;
+
+private:
+    
+
+   
+
     SpectrumAudioProcessor& audioProcessor;
     std::array<float, SpectrumAudioProcessor::maxFftSize / 2> smoothedData;
     std::array<float, SpectrumAudioProcessor::maxFftSize / 2> maxData;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MagnitudeMeter)
 };
-//==============================================================================
-/**
-*/
+
 class SpectrumAudioProcessorEditor  : public juce::AudioProcessorEditor
 {
 public:
     SpectrumAudioProcessorEditor (SpectrumAudioProcessor&);
     ~SpectrumAudioProcessorEditor() override;
 
-    //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
     
@@ -379,7 +443,6 @@ private:
     SpectrumAudioProcessor& audioProcessor;
 
     MagnitudeMeter meter{ audioProcessor };
-
 
     juce::ComboBox binSizeMenu;
 
@@ -393,6 +456,13 @@ private:
     juce::TextButton btnLog{ "Log" };
     juce::TextButton btnLin{ "Lin" };
     juce::TextButton btnST{ "ST" };
+
+    juce::TextButton btnDbRange{ "Auto" };
+
+    juce::Slider sliderDbRangeMin;
+    juce::Slider sliderDbRangeMax;
+
+    CustomLookAndFeel customLook;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SpectrumAudioProcessorEditor)
 };
