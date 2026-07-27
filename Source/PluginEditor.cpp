@@ -4,6 +4,14 @@
 SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {   
+    setLookAndFeel(&customLook);
+
+    binSizeLabel.setText("FFT Size:", juce::dontSendNotification);
+    binSizeLabel.setJustificationType(juce::Justification::centredLeft);
+    binSizeLabel.setFont(juce::Font(12.0f, juce::Font::bold));
+    binSizeLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    addAndMakeVisible(binSizeLabel);
+
     binSizeMenu.addItem("2048", 1);
     binSizeMenu.addItem("4096", 2);
     binSizeMenu.addItem("8192", 3);
@@ -38,35 +46,11 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
     btnRight.setConnectedEdges(juce::Button::ConnectedOnLeft | juce::Button::ConnectedOnRight);
     btnBoth.setConnectedEdges(juce::Button::ConnectedOnLeft);
 
-    btnLeft.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    btnLeft.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
-
-    btnLeft.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
-    btnLeft.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-
-    btnRight.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    btnRight.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
-      
-    btnRight.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
-    btnRight.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-
-    btnBoth.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    btnBoth.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
-
-    btnBoth.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
-    btnBoth.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-
     btnLeft.onClick = [this]() { audioProcessor.currentChannelMode.store(0); };
     btnRight.onClick = [this]() { audioProcessor.currentChannelMode.store(1); };
     btnBoth.onClick = [this]() { audioProcessor.currentChannelMode.store(2); };
 
     btnMax.setClickingTogglesState(true);
-
-    btnMax.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);    
-    btnMax.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
-    
-    btnMax.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    btnMax.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
 
     btnMax.onClick = [this]
         {
@@ -77,12 +61,6 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
         };
     
     btnLine.setClickingTogglesState(true);
-
-    btnLine.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    btnLine.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
-
-    btnLine.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
-    btnLine.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
 
     btnLine.onClick = [this]
         {
@@ -95,7 +73,7 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
             else
             {
                 meter.currentMeterMode.store(1);
-                btnLine.setButtonText("Path");
+                btnLine.setButtonText("Bins");
             }
                 
         };
@@ -116,36 +94,18 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
     btnLin.setConnectedEdges(juce::Button::ConnectedOnLeft | juce::Button::ConnectedOnRight);
     btnST.setConnectedEdges(juce::Button::ConnectedOnLeft);
 
-    btnLog.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    btnLog.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
-
-    btnLog.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
-    btnLog.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-
-    btnLin.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    btnLin.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
-
-    btnLin.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
-    btnLin.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-
-    btnST.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    btnST.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
-
-    btnST.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
-    btnST.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-
     btnLog.onClick = [this]() { meter.currentScaleMode.store(0); };
     btnLin.onClick = [this]() { meter.currentScaleMode.store(1); };
     btnST.onClick = [this]() { meter.currentScaleMode.store(2); };
 
-    btnDbRange.setColour(juce::TextButton::buttonOnColourId, juce::Colours::limegreen);
-    btnDbRange.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-    btnDbRange.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
-    btnDbRange.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-
     btnDbRange.setClickingTogglesState(true);
 
     btnDbRange.setToggleState(true, juce::dontSendNotification);
+
+    sliderDbRangeMin.setRange(meter.minDb, meter.maxDb, 1.0);
+    sliderDbRangeMax.setRange(meter.minDb, meter.maxDb, 1.0);
+
+    sliderDbRangeMin.setValue(meter.minDb, juce::dontSendNotification);
 
     btnDbRange.onClick = [this]
         {
@@ -158,18 +118,15 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
 
             else 
             {   
-                sliderDbRangeMin.setValue(static_cast<int>(meter.currentMinDb));
-                sliderDbRangeMax.setValue(static_cast<int>(meter.currentMaxDb));
+                sliderDbRangeMin.setValue(static_cast<int>(meter.currentMinDb), juce::dontSendNotification);
+                sliderDbRangeMax.setValue(static_cast<int>(meter.currentMaxDb), juce::dontSendNotification);
                 meter.isDbRangeAuto.store(false);
                 sliderDbRangeMin.setEnabled(true);
                 sliderDbRangeMax.setEnabled(true);
             }
         };
 
-    sliderDbRangeMin.setRange(meter.minDb, meter.maxDb, 1.0);
-    sliderDbRangeMax.setRange(meter.minDb, meter.maxDb, 1.0);
-
-    sliderDbRangeMin.setValue(meter.minDb, juce::dontSendNotification);
+    
     sliderDbRangeMax.setValue(meter.maxDb, juce::dontSendNotification);
 
     sliderDbRangeMin.setNumDecimalPlacesToDisplay(0);
@@ -178,59 +135,53 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
     sliderDbRangeMin.onValueChange = [this]
         {
             float newMin = static_cast<float>(sliderDbRangeMin.getValue());
-            float currentMax = static_cast<float>(sliderDbRangeMax.getValue());
 
+            float maxAllowedMin = meter.maxDb - 60.0f;
+            if (newMin > maxAllowedMin)
+            {
+                newMin = maxAllowedMin;
+                sliderDbRangeMin.setValue(newMin, juce::dontSendNotification);
+            }
+
+            float currentMax = static_cast<float>(sliderDbRangeMax.getValue());
             if (currentMax - newMin < 60.0f)
             {
                 float requiredMax = newMin + 60.0f;
-
-                if (requiredMax <= meter.maxDb)
-                {
-                    sliderDbRangeMax.setValue(requiredMax, juce::dontSendNotification);
-                    meter.currentMaxDb = requiredMax;
-                    meter.currentMinDb = newMin;
-                }
-                else
-                {
-                    float blockedMin = meter.maxDb - 60.0f;
-                    sliderDbRangeMin.setValue(blockedMin, juce::dontSendNotification);
-                    meter.currentMinDb = blockedMin;
-                    meter.currentMaxDb = meter.maxDb;
-                }
+                sliderDbRangeMax.setValue(requiredMax, juce::dontSendNotification);
+                meter.currentMaxDb = requiredMax;
             }
             else
             {
-                meter.currentMinDb = newMin;
+                meter.currentMaxDb = currentMax;
             }
+
+            meter.currentMinDb = newMin;
         };
 
     sliderDbRangeMax.onValueChange = [this]
         {
             float newMax = static_cast<float>(sliderDbRangeMax.getValue());
-            float currentMin = static_cast<float>(sliderDbRangeMin.getValue());
 
+            float minAllowedMax = meter.minDb + 60.0f;
+            if (newMax < minAllowedMax)
+            {
+                newMax = minAllowedMax;
+                sliderDbRangeMax.setValue(newMax, juce::dontSendNotification);
+            }
+
+            float currentMin = static_cast<float>(sliderDbRangeMin.getValue());
             if (newMax - currentMin < 60.0f)
             {
                 float requiredMin = newMax - 60.0f;
-
-                if (requiredMin >= meter.minDb)
-                {
-                    sliderDbRangeMin.setValue(requiredMin, juce::dontSendNotification);
-                    meter.currentMinDb = requiredMin;
-                    meter.currentMaxDb = newMax;
-                }
-                else
-                {
-                    float blockedMax = meter.minDb + 60.0f;
-                    sliderDbRangeMax.setValue(blockedMax, juce::dontSendNotification);
-                    meter.currentMaxDb = blockedMax;
-                    meter.currentMinDb = meter.minDb;
-                }
+                sliderDbRangeMin.setValue(requiredMin, juce::dontSendNotification);
+                meter.currentMinDb = requiredMin;
             }
             else
             {
-                meter.currentMaxDb = newMax;
+                meter.currentMinDb = currentMin;
             }
+
+            meter.currentMaxDb = newMax;
         };
 
     sliderDbRangeMin.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
@@ -259,9 +210,6 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
     sliderDbRangeMin.setSliderStyle(juce::Slider::LinearHorizontal);
     sliderDbRangeMax.setSliderStyle(juce::Slider::LinearHorizontal);
 
-    sliderDbRangeMin.setLookAndFeel(&customLook);
-    sliderDbRangeMax.setLookAndFeel(&customLook);
-
     addAndMakeVisible(sliderDbRangeMin);
     addAndMakeVisible(sliderDbRangeMax);
 
@@ -270,8 +218,7 @@ SpectrumAudioProcessorEditor::SpectrumAudioProcessorEditor (SpectrumAudioProcess
 
 SpectrumAudioProcessorEditor::~SpectrumAudioProcessorEditor()
 {
-    sliderDbRangeMin.setLookAndFeel(nullptr);
-    sliderDbRangeMax.setLookAndFeel(nullptr);
+    setLookAndFeel(nullptr);
 }
 
 void SpectrumAudioProcessorEditor::paint (juce::Graphics& g)
@@ -283,23 +230,44 @@ void SpectrumAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
 
-    binSizeMenu.setBounds(45,8,120,24);
-
-    btnLeft.setBounds(45, 42, 35, 24);
-    btnRight.setBounds(80, 42, 35, 24);
-    btnBoth.setBounds(115, 42, 45, 24);
-
-    btnMax.setBounds(45, 76, 45, 24);
-    btnLine.setBounds(95, 76, 45, 24);
-
-    btnLog.setBounds(45, 110, 35, 24);
-    btnLin.setBounds(80, 110, 35, 24);
-    btnST.setBounds(115, 110, 45, 24);
-
-    btnDbRange.setBounds(45, 144, 45, 24);
-
-    sliderDbRangeMin.setBounds(100, 144, 40, 15);
-    sliderDbRangeMax.setBounds(150, 144, 40, 15);
+    auto controlPanel = bounds.removeFromLeft(220);
 
     meter.setBounds(bounds);
+
+    controlPanel.reduce(15, 15);
+
+    const int rowHeight = 30;
+    const int gap = 24;
+
+    auto topRow = controlPanel.removeFromTop(rowHeight);
+    binSizeLabel.setBounds(topRow.removeFromLeft(60)); 
+    binSizeMenu.setBounds(topRow);                     
+    controlPanel.removeFromTop(gap);
+
+    auto channelRow = controlPanel.removeFromTop(rowHeight);
+    btnLeft.setBounds(channelRow.removeFromLeft(channelRow.getWidth() / 3));
+    btnRight.setBounds(channelRow.removeFromLeft(channelRow.getWidth() / 2));
+    btnBoth.setBounds(channelRow);
+    controlPanel.removeFromTop(gap);
+
+    auto scaleRow = controlPanel.removeFromTop(rowHeight);
+    btnLog.setBounds(scaleRow.removeFromLeft(scaleRow.getWidth() / 3));
+    btnLin.setBounds(scaleRow.removeFromLeft(scaleRow.getWidth() / 2));
+    btnST.setBounds(scaleRow);
+    controlPanel.removeFromTop(gap);
+
+    auto displayRow = controlPanel.removeFromTop(rowHeight);
+    btnMax.setBounds(displayRow.removeFromLeft(displayRow.getWidth() / 2));
+
+    displayRow.removeFromLeft(4);
+    btnLine.setBounds(displayRow);
+    controlPanel.removeFromTop(gap);
+
+    auto dbRow = controlPanel.removeFromTop(rowHeight);
+
+    btnDbRange.setBounds(dbRow.removeFromLeft(60));
+    dbRow.removeFromLeft(10);
+
+    sliderDbRangeMin.setBounds(dbRow.removeFromLeft(dbRow.getWidth() / 2));
+    sliderDbRangeMax.setBounds(dbRow);
 }
