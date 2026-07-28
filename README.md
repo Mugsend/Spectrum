@@ -1,7 +1,7 @@
 # Spectrum
 <img width="1202" height="330" alt="image" src="https://github.com/user-attachments/assets/40858446-894e-4517-a522-52e56cbe11b0" />
 
-Spectrum is a real-time audio spectrum analyzer plugin built with C++ and the JUCE framework. It provides highly customizable visual metering for mixing and audio analysis, featuring dynamic FFT sizing, multiple frequency scales (including MIDI pitch), and an interactive UI with a custom dark-mode aesthetic.
+Spectrum is a real-time audio spectrum analyzer plugin built with C++ and the JUCE framework. It provides customizable visual metering for mixing and audio analysis, featuring dynamic FFT sizing, multiple frequency scales (including MIDI pitch), and an interactive UI with a custom dark-mode aesthetic.
 
 ## Features
 
