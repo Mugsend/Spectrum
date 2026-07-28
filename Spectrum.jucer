@@ -4,6 +4,12 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="vOTRdf" name="spectrum">
     <GROUP id="{176A00D4-F4F2-2886-1635-1F4996F7F53A}" name="Source">
+      <FILE id="Tq6jOF" name="MagnitudeMeter.cpp" compile="1" resource="0"
+            file="Source/MagnitudeMeter.cpp"/>
+      <FILE id="lPA36r" name="MagnitudeMeter.h" compile="0" resource="0"
+            file="Source/MagnitudeMeter.h"/>
+      <FILE id="c0waeg" name="CustomLookAndFeel.h" compile="0" resource="0"
+            file="Source/CustomLookAndFeel.h"/>
       <FILE id="F2Z09l" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
       <FILE id="WK48Kb" name="PluginProcessor.h" compile="0" resource="0"
