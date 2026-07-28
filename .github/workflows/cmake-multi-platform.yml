@@ -1,0 +1,36 @@
+name: Build Plugins
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build Plugin
+      run: cmake --build build --config Release --parallel 4
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Mugsend-Spectrum-VST3-${{ matrix.os }}
+        path: |
+          build/**/*_artefacts/Release/VST3/*.vst3
+          build/**/Release/*.vst3
