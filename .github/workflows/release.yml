@@ -17,7 +17,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          submodules: recursive # Crucial: This pulls JUCE automatically
+          submodules: recursive
 
       - name: Configure CMake
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -36,20 +36,20 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: build-windows # Waits for the build job to finish
+    needs: build-windows
     runs-on: ubuntu-latest
 
     steps:
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: *-artifact
+          pattern: "*-artifact"
           path: release-files
           merge-multiple: true
 
       - name: Publish Draft Release
         uses: softprops/action-gh-release@v2
         with:
-          draft: true # Creates a draft so you can review and add release notes before publishing
+          draft: true
           generate_release_notes: true
           files: release-files/*
