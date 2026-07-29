@@ -21,6 +21,8 @@ juce_add_plugin(Spectrum
     COPY_PLUGIN_AFTER_BUILD TRUE
 )
 
+juce_generate_juce_header(Spectrum)
+
 target_sources(Spectrum PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginProcessor.h
